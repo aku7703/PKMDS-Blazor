@@ -22,7 +22,9 @@ param(
     [switch]$SkipPublish
 )
 
-$ErrorActionPreference = 'Stop'
+# 'Continue', not 'Stop': Windows PowerShell 5.1 turns native stderr (netlify's progress output) into
+# terminating errors under 'Stop'. Native failures are caught through $LASTEXITCODE below.
+$ErrorActionPreference = 'Continue'
 $root = $PSScriptRoot
 $out = Join-Path $root 'release'
 $www = Join-Path $out 'wwwroot'
