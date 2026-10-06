@@ -1,3 +1,6 @@
+> **iPhone single-device fork.** This fork adds trade evolutions to the cross-save Trade tab, plus Gen 4–7 editors (Entralink/Entrée Forest, Key System, Join Avenue, Pokéwalker, Festival Plaza, event flags). Together they cover content that normally needs a second console, so every pre-Switch Pokémon game can be played on one iPhone.
+> Live app: **https://pkhex.aniketc.tech** · Setup and features: [docs/IPHONE_SINGLE_DEVICE.md](docs/IPHONE_SINGLE_DEVICE.md) · Upstream: [codemonkey85/PKMDS-Blazor](https://github.com/codemonkey85/PKMDS-Blazor)
+
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="assets/readme-header-dark.svg">
