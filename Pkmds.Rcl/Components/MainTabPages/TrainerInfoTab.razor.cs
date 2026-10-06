@@ -457,6 +457,28 @@ public partial class TrainerInfoTab : IDisposable
         }
     }
 
+    // Gen 3/4 saves implement IEventFlag37 directly; Gen 5–7 expose it via EventWork
+    // (same dispatch as PKHeX WinForms SAVEditor's event flag button).
+    private static IEventFlag37? GetEventFlagSource(SaveFile sav) => sav switch
+    {
+        { Generation: < 3 or > 7 } => null,
+        IEventFlag37 g37 => g37,
+        IEventFlagProvider37 provider => provider.EventWork,
+        _ => null,
+    };
+
+    private async Task OpenEventFlagsDialog(SaveFile sav, IEventFlag37 source)
+    {
+        var parameters = new DialogParameters<EventFlagsDialog>
+        {
+            { x => x.SaveFile, sav },
+            { x => x.Source, source },
+            { x => x.Version, sav.Version },
+        };
+        var options = await DialogOptionsHelper.BuildAsync(MaxWidth.Medium);
+        await DialogService.ShowAsync<EventFlagsDialog>("Event Flags", parameters, options);
+    }
+
     private async Task OpenSayingsDialog(SAV6 sav6)
     {
         var parameters = new DialogParameters

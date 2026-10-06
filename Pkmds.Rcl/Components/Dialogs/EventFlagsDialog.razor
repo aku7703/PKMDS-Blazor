@@ -1,0 +1,148 @@
+@inherits BasePkmdsComponent
+
+@* Gen 3–7 event flag / event work editor built on PKHeX's EventWorkspace + labelled
+   flag lists (same data as WinForms SAV_EventFlags). Edits stay in the workspace copy
+   until "Save" is pressed. *@
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="@Typo.h6">Event Flags &amp; Work (@Version)</MudText>
+    </TitleContent>
+    <DialogContent>
+        @if (workspace is null)
+        {
+            <MudAlert Severity="@Severity.Warning">@loadError</MudAlert>
+        }
+        else
+        {
+            <MudAlert Severity="@Severity.Info"
+                      Dense
+                      Class="mb-3">
+                Changing story flags can break your game. Keep a backup before saving. Tip: search
+                “ticket”, “travel”, “letter”, “card” or “flute” to find event-island unlocks.
+            </MudAlert>
+
+            <MudTextField T="@string"
+                          Label="Search flags and work"
+                          Variant="@Variant.Outlined"
+                          Margin="@Margin.Dense"
+                          Adornment="@Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search"
+                          Immediate
+                          DebounceInterval="200"
+                          @bind-Value="@search"/>
+
+            <MudStack Row
+                      Wrap="@Wrap.Wrap"
+                      Spacing="1"
+                      Class="my-2">
+                @foreach (var quick in QuickSearches)
+                {
+                    var term = quick;
+                    <MudChip T="@string"
+                             Size="@Size.Small"
+                             OnClick="@(() => search = term)">@term</MudChip>
+                }
+            </MudStack>
+
+            var flags = FilteredFlags.ToList();
+            <MudText Typo="@Typo.subtitle2"
+                     Class="mt-2">Flags (@flags.Count match@(flags.Count > MaxRows ? $", first {MaxRows} shown" : string.Empty))</MudText>
+            <div style="max-height: 45vh; overflow-y: auto;">
+                @foreach (var flag in flags.Take(MaxRows))
+                {
+                    var current = flag;
+                    <div @key="@($"f{current.Index}")"
+                         class="d-flex align-center"
+                         style="gap: 0.25rem;">
+                        <MudCheckBox T="@bool"
+                                     Dense
+                                     Color="@Color.Primary"
+                                     Value="@workspace.Flags[current.Index]"
+                                     ValueChanged="@(v => workspace.Flags[current.Index] = v)"/>
+                        <MudText Typo="@Typo.body2"
+                                 Style="overflow-wrap: anywhere;">
+                            #@current.Index · @current.Name
+                            <MudText Typo="@Typo.caption"
+                                     Color="@Color.Secondary"
+                                     Inline>(@current.Type)</MudText>
+                        </MudText>
+                    </div>
+                }
+            </div>
+
+            var works = FilteredWork.ToList();
+            @if (works.Count > 0)
+            {
+                <MudText Typo="@Typo.subtitle2"
+                         Class="mt-3">Event work</MudText>
+                <MudStack Spacing="2">
+                    @foreach (var work in works.Take(MaxRows))
+                    {
+                        var current = work;
+                        var presets = current.PredefinedValues.Where(p => !p.IsCustom).ToList();
+                        var value = workspace.Values[current.Index];
+                        <div @key="@($"w{current.Index}")">
+                            @if (presets.Count > 0)
+                            {
+                                <MudSelect T="@ushort"
+                                           Label="@($"#{current.Index} · {current.Name}")"
+                                           Variant="@Variant.Outlined"
+                                           Margin="@Margin.Dense"
+                                           Value="@value"
+                                           ValueChanged="@(v => workspace.Values[current.Index] = v)">
+                                    @if (presets.All(p => p.Value != value))
+                                    {
+                                        <MudSelectItem T="@ushort"
+                                                       Value="@value">Custom (@value)</MudSelectItem>
+                                    }
+                                    @foreach (var preset in presets.DistinctBy(p => p.Value))
+                                    {
+                                        <MudSelectItem T="@ushort"
+                                                       Value="@preset.Value">@preset.Name (@preset.Value)</MudSelectItem>
+                                    }
+                                </MudSelect>
+                            }
+                            else
+                            {
+                                <MudNumericField T="@ushort"
+                                                 Label="@($"#{current.Index} · {current.Name}")"
+                                                 Variant="@Variant.Outlined"
+                                                 Margin="@Margin.Dense"
+                                                 Value="@value"
+                                                 ValueChanged="@(v => workspace.Values[current.Index] = v)"/>
+                            }
+                        </div>
+                    }
+                </MudStack>
+            }
+
+            <MudText Typo="@Typo.subtitle2"
+                     Class="mt-3">Any flag by number</MudText>
+            <div class="d-flex align-center flex-wrap"
+                 style="gap: 0.5rem;">
+                <MudNumericField T="@int"
+                                 Label="Flag #"
+                                 Variant="@Variant.Outlined"
+                                 Margin="@Margin.Dense"
+                                 Min="0"
+                                 Max="@(workspace.Flags.Length - 1)"
+                                 Style="max-width: 10rem;"
+                                 @bind-Value="@customFlag"/>
+                <MudCheckBox T="@bool"
+                             Label="Set"
+                             Color="@Color.Primary"
+                             Value="@GetCustomFlag()"
+                             ValueChanged="@SetCustomFlag"/>
+            </div>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@Cancel"
+                   Variant="@Variant.Text">Cancel</MudButton>
+        <MudButton OnClick="@SaveChanges"
+                   Variant="@Variant.Filled"
+                   Color="@Color.Primary"
+                   Disabled="@(workspace is null)">Save</MudButton>
+    </DialogActions>
+</MudDialog>

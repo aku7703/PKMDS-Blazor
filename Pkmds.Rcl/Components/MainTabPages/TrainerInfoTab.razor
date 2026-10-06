@@ -421,6 +421,18 @@
             <TrainerInfoSav7FestaSection SaveFile="@sav7Plaza"/>
         }
 
+        @if (GetEventFlagSource(saveFile) is { } eventFlagSource)
+        {
+            <div class="form-field">
+                <MudButton Variant="@Variant.Filled"
+                           Color="@Color.Primary"
+                           StartIcon="@Icons.Material.Filled.Flag"
+                           OnClick="@(() => OpenEventFlagsDialog(saveFile, eventFlagSource))">
+                    Event Flags…
+                </MudButton>
+            </div>
+        }
+
         @if (saveFile is SAV6 sav6Sayings)
         {
             <div class="form-field">
