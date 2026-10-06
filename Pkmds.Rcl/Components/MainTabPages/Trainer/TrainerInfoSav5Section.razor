@@ -1,0 +1,285 @@
+@inherits BasePkmdsComponent
+
+@* Gen 5 (BW / B2W2) multiplayer-only features, so a single device can reach content that
+   normally needs a second DS. Renders inside the parent .form-grid. Mirrors PKHeX WinForms
+   SAV_Misc5 (Entralink, Entrée Forest, Key System, Liberty Pass), SAV_Medals5 and
+   SAV_JoinAvenue. *@
+
+<div class="form-section-header">Entralink</div>
+
+<div class="form-field">
+    <MudNumericField T="@int"
+                     Label="White Forest Entralink Level"
+                     Variant="@Variant.Outlined"
+                     Min="0"
+                     Max="@MaxEntralinkLevel"
+                     @bind-Value:get="@SaveFile.Entralink.WhiteForestLevel"
+                     @bind-Value:set="@((int v) => SetEntralink(e => e.WhiteForestLevel = (ushort)Math.Clamp(v, 0, MaxEntralinkLevel)))"/>
+</div>
+<div class="form-field">
+    <MudNumericField T="@int"
+                     Label="Black City Entralink Level"
+                     Variant="@Variant.Outlined"
+                     Min="0"
+                     Max="@MaxEntralinkLevel"
+                     @bind-Value:get="@SaveFile.Entralink.BlackCityLevel"
+                     @bind-Value:set="@((int v) => SetEntralink(e => e.BlackCityLevel = (ushort)Math.Clamp(v, 0, MaxEntralinkLevel)))"/>
+</div>
+
+@if (SaveFile is SAV5B2W2 { Entralink: Entralink5B2W2 pass } b2w2Festa)
+{
+    <div class="form-field">
+        <MudNumericField T="@int"
+                         Label="White Forest Entralink EXP"
+                         Variant="@Variant.Outlined"
+                         Min="0"
+                         Max="49"
+                         @bind-Value:get="@b2w2Festa.Festa.WhiteEXP"
+                         @bind-Value:set="@((int v) => { b2w2Festa.Festa.WhiteEXP = (byte)Math.Clamp(v, 0, 49); MarkEdited(); })"/>
+    </div>
+    <div class="form-field">
+        <MudNumericField T="@int"
+                         Label="Black City Entralink EXP"
+                         Variant="@Variant.Outlined"
+                         Min="0"
+                         Max="49"
+                         @bind-Value:get="@b2w2Festa.Festa.BlackEXP"
+                         @bind-Value:set="@((int v) => { b2w2Festa.Festa.BlackEXP = (byte)Math.Clamp(v, 0, 49); MarkEdited(); })"/>
+    </div>
+
+    @for (var p = 0; p < 3; p++)
+    {
+        var passIndex = p;
+        <div class="form-field" @key="@($"pass-{passIndex}")">
+            <MudSelect T="@int"
+                       Label="@($"Pass Power slot {passIndex + 1}")"
+                       Variant="@Variant.Outlined"
+                       Value="@GetPassPower(pass, passIndex)"
+                       ValueChanged="@(v => SetPassPower(pass, passIndex, v))">
+                @foreach (var power in PassPowers)
+                {
+                    <MudSelectItem T="@int"
+                                   Value="@((int)power)">@FormatEnumName(power.ToString())</MudSelectItem>
+                }
+            </MudSelect>
+        </div>
+    }
+
+    <div class="form-field">
+        <MudButton Variant="@Variant.Outlined"
+                   Color="@Color.Primary"
+                   StartIcon="@Icons.Material.Filled.Celebration"
+                   OnClick="@UnlockAllFunfestMissions">
+            Unlock All Funfest Missions
+        </MudButton>
+    </div>
+}
+
+<div class="form-section-header">Entrée Forest</div>
+
+<div class="form-field">
+    <MudNumericField T="@int"
+                     Label="Unlocked areas (2–8)"
+                     Variant="@Variant.Outlined"
+                     Min="2"
+                     Max="8"
+                     @bind-Value:get="@forestUnlockedAreas"
+                     @bind-Value:set="@SetForestUnlockedAreas"/>
+</div>
+<div class="form-field">
+    <HapticCheckBox T="@bool"
+                    Label="9th area unlocked"
+                    Color="@Color.Primary"
+                    Value="@forestNinthArea"
+                    ValueChanged="@SetForestNinthArea"/>
+</div>
+<div class="form-field">
+    <MudButton Variant="@Variant.Filled"
+               Color="@Color.Primary"
+               StartIcon="@Icons.Material.Filled.Forest"
+               OnClick="@UnlockAllForestAreas">
+        Unlock All Forest Areas
+    </MudButton>
+</div>
+
+<div class="form-field" style="grid-column: 1 / -1;">
+    <MudSelect T="@int"
+               Label="Forest area"
+               Variant="@Variant.Outlined"
+               Value="@selectedArea"
+               ValueChanged="@SelectArea">
+        @foreach (var area in ForestAreas)
+        {
+            <MudSelectItem T="@int"
+                           Value="@((int)area)">@DescribeArea(area)</MudSelectItem>
+        }
+    </MudSelect>
+
+    <MudStack Row
+              Wrap="@Wrap.Wrap"
+              Spacing="1"
+              Class="mt-2">
+        @foreach (var slot in areaSlots)
+        {
+            var current = slot;
+            <MudChip T="@string"
+                     Size="@Size.Small"
+                     Color="@(current.Index == selectedSlot?.Index ? Color.Primary : Color.Default)"
+                     OnClick="@(() => SelectSlot(current))">
+                @(current.Species == 0 ? "(empty)" : GetSpeciesName(current.Species))
+            </MudChip>
+        }
+    </MudStack>
+
+    @if (selectedSlot is { } editing)
+    {
+        <MudPaper Outlined
+                  Class="pa-3 mt-2">
+            <MudText Typo="@Typo.subtitle2"
+                     Class="mb-2">Slot @(editing.Index + 1)</MudText>
+            <MudStack Spacing="2">
+                <MudAutocomplete T="@ComboItem"
+                                 Label="Species"
+                                 Variant="@Variant.Outlined"
+                                 Margin="@Margin.Dense"
+                                 Value="@AppService.GetSpeciesComboItem(editing.Species)"
+                                 ValueChanged="@(item => UpdateSlot(s => { s.Species = (ushort)(item?.Value ?? 0); s.Form = 0; s.Gender = GetDefaultGender(s.Species); }))"
+                                 SearchFunc="@SearchPokemonNames"
+                                 ToStringFunc="@(s => s?.Text)"/>
+                <MudAutocomplete T="@ComboItem"
+                                 Label="Move"
+                                 Variant="@Variant.Outlined"
+                                 Margin="@Margin.Dense"
+                                 Value="@AppService.GetMoveComboItem(editing.Move)"
+                                 ValueChanged="@(item => UpdateSlot(s => s.Move = (ushort)(item?.Value ?? 0)))"
+                                 SearchFunc="@SearchMoves"
+                                 ToStringFunc="@(m => m?.Text)"/>
+                <MudSelect T="@int"
+                           Label="Gender"
+                           Variant="@Variant.Outlined"
+                           Margin="@Margin.Dense"
+                           Value="@((int)editing.Gender)"
+                           ValueChanged="@(v => UpdateSlot(s => s.Gender = (byte)v))">
+                    @foreach (var (value, text) in GetGenderChoices(editing.Species))
+                    {
+                        <MudSelectItem T="@int"
+                                       Value="@value">@text</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudNumericField T="@int"
+                                 Label="Form"
+                                 Variant="@Variant.Outlined"
+                                 Margin="@Margin.Dense"
+                                 Min="0"
+                                 Max="63"
+                                 Value="@((int)editing.Form)"
+                                 ValueChanged="@(v => UpdateSlot(s => s.Form = (byte)Math.Clamp(v, 0, 63)))"/>
+                <MudButton Variant="@Variant.Text"
+                           Color="@Color.Error"
+                           StartIcon="@Icons.Material.Filled.Delete"
+                           OnClick="@(() => UpdateSlot(s => s.Delete()))">
+                    Clear slot
+                </MudButton>
+            </MudStack>
+        </MudPaper>
+    }
+</div>
+
+@if (SaveFile is SAV5BW bw)
+{
+    <div class="form-section-header">Events</div>
+
+    <div class="form-field">
+        <HapticCheckBox T="@bool"
+                        Label="Liberty Pass activated (Victini)"
+                        Color="@Color.Primary"
+                        Value="@bw.Misc.IsLibertyTicketActivated"
+                        ValueChanged="@(v => { bw.Misc.IsLibertyTicketActivated = v; MarkEdited(); })"/>
+    </div>
+}
+
+@if (SaveFile is SAV5B2W2 b2w2)
+{
+    <div class="form-section-header">Key System</div>
+
+    @foreach (var key in KeyTypes)
+    {
+        var currentKey = key;
+        <div class="form-field" @key="@currentKey">
+            <MudText Typo="@Typo.body2">@KeyName(currentKey)</MudText>
+            <HapticCheckBox T="@bool"
+                            Label="Obtained"
+                            Color="@Color.Primary"
+                            Value="@b2w2.Keys.GetIsKeyObtained(currentKey)"
+                            ValueChanged="@(v => { b2w2.Keys.SetIsKeyObtained(currentKey, v); MarkEdited(); })"/>
+            <HapticCheckBox T="@bool"
+                            Label="Unlocked"
+                            Color="@Color.Primary"
+                            Value="@b2w2.Keys.GetIsKeyUnlocked(currentKey)"
+                            ValueChanged="@(v => { b2w2.Keys.SetIsKeyUnlocked(currentKey, v); MarkEdited(); })"/>
+        </div>
+    }
+    <div class="form-field">
+        <MudButton Variant="@Variant.Filled"
+                   Color="@Color.Primary"
+                   StartIcon="@Icons.Material.Filled.Key"
+                   OnClick="@(() => ObtainAllKeys(b2w2))">
+            Obtain &amp; Unlock All Keys
+        </MudButton>
+    </div>
+
+    <div class="form-section-header">Join Avenue</div>
+
+    <div class="form-field">
+        <MudNumericField T="@int"
+                         Label="Avenue Rank"
+                         Variant="@Variant.Outlined"
+                         Min="0"
+                         Max="@((int)JoinAvenueSettings5.MaxAvenueRank)"
+                         @bind-Value:get="@b2w2.JoinAvenue.Settings.Rank"
+                         @bind-Value:set="@((int v) => { b2w2.JoinAvenue.Settings.Rank = (ushort)Math.Clamp(v, 0, JoinAvenueSettings5.MaxAvenueRank); MarkEdited(); })"/>
+    </div>
+    <div class="form-field">
+        <MudNumericField T="@uint"
+                         Label="Avenue Experience"
+                         Variant="@Variant.Outlined"
+                         Min="0u"
+                         @bind-Value:get="@b2w2.JoinAvenue.Settings.Experience"
+                         @bind-Value:set="@(v => { b2w2.JoinAvenue.Settings.Experience = v; MarkEdited(); })"/>
+    </div>
+    @for (var o = 0; o < JoinAvenue5.OccupantCount; o++)
+    {
+        var occupant = b2w2.JoinAvenue.GetOccupant(o);
+        if (string.IsNullOrWhiteSpace(occupant.Name))
+        {
+            continue;
+        }
+
+        var occupantIndex = o;
+        <div class="form-field" @key="@($"shop-{occupantIndex}")">
+            <MudNumericField T="@int"
+                             Label="@($"Shop {occupantIndex + 1} level ({occupant.Name})")"
+                             Variant="@Variant.Outlined"
+                             Min="0"
+                             Max="@((int)JoinAvenueVisitor5.ShopMaxRank)"
+                             Value="@((int)occupant.ShopRank)"
+                             ValueChanged="@(v => { b2w2.JoinAvenue.GetOccupant(occupantIndex).ShopRank = (byte)Math.Clamp(v, 0, JoinAvenueVisitor5.ShopMaxRank); MarkEdited(); })"/>
+        </div>
+    }
+
+    <div class="form-section-header">Medals</div>
+
+    <div class="form-field">
+        <MudText Typo="@Typo.body2">
+            Obtained: @b2w2.Medals.GetCountObtained() / 255 — Rank: @b2w2.Medals.Rank
+        </MudText>
+    </div>
+    <div class="form-field">
+        <MudButton Variant="@Variant.Filled"
+                   Color="@Color.Primary"
+                   StartIcon="@Icons.Material.Filled.MilitaryTech"
+                   OnClick="@(() => GiveAllMedals(b2w2))">
+            Obtain All Medals
+        </MudButton>
+    </div>
+}

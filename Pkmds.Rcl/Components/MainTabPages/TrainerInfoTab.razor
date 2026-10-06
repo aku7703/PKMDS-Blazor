@@ -401,6 +401,11 @@
             <TrainerInfoSav2Section SaveFile="@sav2Misc"/>
         }
 
+        @if (saveFile is SAV5 sav5Misc)
+        {
+            <TrainerInfoSav5Section SaveFile="@sav5Misc"/>
+        }
+
         @if (saveFile is SAV6 sav6Sayings)
         {
             <div class="form-field">
