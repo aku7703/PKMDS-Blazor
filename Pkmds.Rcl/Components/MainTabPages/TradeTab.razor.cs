@@ -644,14 +644,23 @@ public partial class TradeTab : RefreshAwareComponent
             }
         }
 
+        // Trade evolutions: a real trade evolves Haunter → Gengar, Onix + Metal Coat → Steelix,
+        // Shelmet ⇄ Karrablast, etc. on arrival. Both sides of a swap are trades, so check each.
+        // A trade-item evolution consumes the held item, so it is not returned to the bag.
+        var srcItemConsumed = await TryTradeEvolveAsync(converted, destSave, destIsParty, destBox, destSlot,
+            srcHeldItem, srcPkm.Context, convertedBack is not null ? destPkmPrev.Species : (ushort)0);
+        var destItemConsumed = convertedBack is not null
+                               && await TryTradeEvolveAsync(convertedBack, srcSave, srcIsParty, srcBox, srcSlot,
+                                   destHeldItem, destPkmPrev.Context, srcPkm.Species);
+
         // Transfer is committed — now deposit the held items we pre-checked. Items the user
         // agreed to lose (CanReturnItemToBag returned false) are simply dropped: HeldItem was
         // already cleared on the clones, so they don't ride along to the destination save.
-        if (srcHeldItem > 0)
+        if (srcHeldItem > 0 && !srcItemConsumed)
         {
             ReturnItemToBag(srcSave, srcHeldItem);
         }
-        if (destHeldItem > 0)
+        if (destHeldItem > 0 && !destItemConsumed)
         {
             ReturnItemToBag(destSave, destHeldItem);
         }
@@ -879,6 +888,89 @@ public partial class TradeTab : RefreshAwareComponent
             save.SetBoxSlotAtIndex(save.BlankPKM, boxNumber.Value, slotNumber);
             save.CompactBoxIfGen12(boxNumber.Value);
         }
+    }
+
+    // ── Trade evolution ───────────────────────────────────────────────────────
+
+    // Returns true when the evolution consumed the traded Pokémon's held item.
+    private async Task<bool> TryTradeEvolveAsync(PKM pk, SaveFile save, bool isParty, int? box, int slot,
+        int heldItem, EntityContext heldItemContext, ushort partnerSpecies)
+    {
+        if (!TradeEvolutionHelper.TryGetTradeEvolution(pk, save, heldItem, heldItemContext, partnerSpecies,
+                out var evolution))
+        {
+            return false;
+        }
+
+        var fromName = GetSpeciesName(pk.Species);
+        var toName = GetSpeciesName(evolution.Method.Species);
+        var itemNote = evolution.ConsumesHeldItem
+            ? $" Its held {GetItemName(heldItem, heldItemContext, save)} will be used up."
+            : string.Empty;
+        var proceed = await DialogService.ShowMessageBoxAsync(
+            $"{fromName} is evolving!",
+            $"Trading triggers evolution: let {fromName} evolve into {toName}?{itemNote} Choose “Stop” to keep it as {fromName} (like pressing B in-game).",
+            yesText: "Evolve",
+            cancelText: "Stop");
+        if (proceed != true)
+        {
+            Snackbar.Add($"{fromName} stopped evolving.", Severity.Info);
+            return false;
+        }
+
+        var evolved = pk.Clone();
+        TradeEvolutionHelper.ApplyEvolution(evolved, evolution.Method);
+
+        // Safety net: never let the evolution step turn a legal Pokémon illegal.
+        if (!AppState.IsHaXEnabled && !IsLegalFor(evolved, save) && IsLegalFor(pk, save))
+        {
+            Snackbar.Add($"{fromName} couldn't evolve into {toName} without becoming illegal, so it was left unevolved.",
+                Severity.Warning);
+            return false;
+        }
+
+        WriteSlot(save, isParty, box, slot, evolved);
+        Snackbar.Add($"{fromName} evolved into {toName}!", Severity.Success);
+        return evolution.ConsumesHeldItem;
+    }
+
+    private static string GetSpeciesName(ushort species) =>
+        species < GameInfo.Strings.specieslist.Length
+            ? GameInfo.Strings.specieslist[species]
+            : $"Species #{species}";
+
+    private static string GetItemName(int itemId, EntityContext context, SaveFile save)
+    {
+        var items = GameInfo.Strings.GetItemStrings(context, save.Version);
+        return itemId >= 0 && itemId < items.Length
+            ? items[itemId]
+            : "item";
+    }
+
+    private bool IsLegalFor(PKM pkm, SaveFile save)
+    {
+        var la = AnalyzeFor(pkm, save);
+        return la.Valid;
+    }
+
+    // HistoryVerifier checks HT fields against the global ParseSettings.ActiveTrainer, which
+    // stays pinned to Save A. Repoint it at the owning save for the analysis, then restore.
+    private LegalityAnalysis AnalyzeFor(PKM pkm, SaveFile save)
+    {
+        if (AppState.SaveFile is { } savA && !ReferenceEquals(savA, save))
+        {
+            ParseSettings.InitFromSaveFileData(save);
+            try
+            {
+                return new LegalityAnalysis(pkm);
+            }
+            finally
+            {
+                ParseSettings.InitFromSaveFileData(savA);
+            }
+        }
+
+        return new LegalityAnalysis(pkm);
     }
 
     private async Task<bool> ConfirmLegalityAsync(PKM pkm, SaveFile destSave)
