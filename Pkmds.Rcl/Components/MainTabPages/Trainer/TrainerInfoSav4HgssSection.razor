@@ -1,0 +1,51 @@
+@inherits BasePkmdsComponent
+
+@* HGSS Pokéwalker data stored in the cartridge save. Mirrors PKHeX WinForms SAV_Misc4
+   (Walker tab). Renders inside the parent .form-grid. *@
+
+<div class="form-section-header">Pokéwalker</div>
+
+<div class="form-field">
+    <MudNumericField T="@uint"
+                     Label="Pokéwalker Steps"
+                     Variant="@Variant.Outlined"
+                     Min="0u"
+                     Max="@MaxWalkerValue"
+                     @bind-Value:get="@SaveFile.PokewalkerSteps"
+                     @bind-Value:set="@((uint v) => { SaveFile.PokewalkerSteps = Math.Min(v, MaxWalkerValue); MarkEdited(); })"/>
+</div>
+<div class="form-field">
+    <MudNumericField T="@uint"
+                     Label="Pokéwalker Watts"
+                     Variant="@Variant.Outlined"
+                     Min="0u"
+                     Max="@MaxWalkerValue"
+                     @bind-Value:get="@SaveFile.PokewalkerWatts"
+                     @bind-Value:set="@((uint v) => { SaveFile.PokewalkerWatts = Math.Min(v, MaxWalkerValue); MarkEdited(); })"/>
+</div>
+<div class="form-field">
+    <MudButton Variant="@Variant.Filled"
+               Color="@Color.Primary"
+               StartIcon="@Icons.Material.Filled.DirectionsWalk"
+               OnClick="@UnlockAllCourses">
+        Unlock All Courses
+    </MudButton>
+</div>
+
+<div class="form-field" style="grid-column: 1 / -1;">
+    <MudText Typo="@Typo.body2"
+             Class="mb-1">Courses</MudText>
+    <div class="flex flex-wrap gap-2">
+        @for (var i = 0; i < CourseNames.Count; i++)
+        {
+            var index = i;
+            <HapticCheckBox T="@bool"
+                            @key="@index"
+                            Label="@CourseNames[index]"
+                            Color="@Color.Primary"
+                            Dense
+                            Value="@courses[index]"
+                            ValueChanged="@(v => SetCourse(index, v))"/>
+        }
+    </div>
+</div>

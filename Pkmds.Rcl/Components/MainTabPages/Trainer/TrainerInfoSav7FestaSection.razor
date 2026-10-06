@@ -1,0 +1,25 @@
+@inherits BasePkmdsComponent
+
+@* Sun/Moon/USUM Festival Plaza rank. Festival Coins already live in the Currency section.
+   Mirrors PKHeX WinForms SAV_FestivalPlaza (NUD_Rank, 1–999). *@
+
+<div class="form-section-header">Festival Plaza</div>
+
+<div class="form-field">
+    <MudNumericField T="@int"
+                     Label="Festival Plaza Rank"
+                     Variant="@Variant.Outlined"
+                     Min="1"
+                     Max="999"
+                     HelperText="Rank normally follows total Festival Coins earned."
+                     @bind-Value:get="@((int)SaveFile.Festa.FestaRank)"
+                     @bind-Value:set="@((int v) => { SaveFile.Festa.FestaRank = (ushort)Math.Clamp(v, 1, 999); SaveFile.State.Edited = true; })"/>
+</div>
+
+@code {
+
+    [Parameter]
+    [EditorRequired]
+    public SAV7 SaveFile { get; set; } = null!;
+
+}

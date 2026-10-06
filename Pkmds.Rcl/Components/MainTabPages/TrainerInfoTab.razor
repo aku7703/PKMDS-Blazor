@@ -406,6 +406,21 @@
             <TrainerInfoSav5Section SaveFile="@sav5Misc"/>
         }
 
+        @if (saveFile is SAV4HGSS hgssWalker)
+        {
+            <TrainerInfoSav4HgssSection SaveFile="@hgssWalker"/>
+        }
+
+        @if (saveFile is SAV6XY xySafari)
+        {
+            <TrainerInfoSav6XySection SaveFile="@xySafari"/>
+        }
+
+        @if (saveFile is SAV7 sav7Plaza)
+        {
+            <TrainerInfoSav7FestaSection SaveFile="@sav7Plaza"/>
+        }
+
         @if (saveFile is SAV6 sav6Sayings)
         {
             <div class="form-field">

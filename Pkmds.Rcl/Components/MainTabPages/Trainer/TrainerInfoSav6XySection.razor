@@ -1,0 +1,35 @@
+@inherits BasePkmdsComponent
+
+@* X/Y Friend Safari. PKHeX only exposes SAV6XY.UnlockAllFriendSafariSlots, which reveals
+   the 2nd/3rd Pokémon for friends already registered in the save. *@
+
+<div class="form-section-header">Friend Safari</div>
+
+<div class="form-field" style="grid-column: 1 / -1;">
+    <MudText Typo="@Typo.body2"
+             Class="mb-2">
+        Reveals the second and third Pokémon in every Friend Safari zone that already exists in this save.
+        Zones come from registered friends, so this has no effect on a save with an empty friend list.
+    </MudText>
+    <MudButton Variant="@Variant.Filled"
+               Color="@Color.Primary"
+               StartIcon="@Icons.Material.Filled.Park"
+               OnClick="@UnlockAllSlots">
+        Unlock All Friend Safari Slots
+    </MudButton>
+</div>
+
+@code {
+
+    [Parameter]
+    [EditorRequired]
+    public SAV6XY SaveFile { get; set; } = null!;
+
+    private void UnlockAllSlots()
+    {
+        // Sets State.Edited itself.
+        SaveFile.UnlockAllFriendSafariSlots();
+        Snackbar.Add("Friend Safari slots unlocked for all registered friends.", Severity.Success);
+    }
+
+}
